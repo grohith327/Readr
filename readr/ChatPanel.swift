@@ -11,6 +11,7 @@ struct ChatPanel: View {
     @Binding var chatMessages: [ChatMessage]
     @Binding var newMessage: String
     @Binding var isLoading: Bool
+    @Binding var selectedContext: String?
     var sendMessage: () -> Void
     
     var body: some View {
@@ -61,6 +62,23 @@ struct ChatPanel: View {
 
             Divider()
 
+            if let context = selectedContext {
+                HStack {
+                    Text("📎 Context: \"\(context.prefix(100))…\"")
+                        .font(.footnote)
+                        .padding(8)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(8)
+
+                    Button(action: { selectedContext = nil }) {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+            }
+            
             HStack(spacing: 10) {
                 TextField("Type your question…", text: $newMessage)
                     .onSubmit {

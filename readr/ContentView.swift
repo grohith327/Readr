@@ -18,6 +18,7 @@ struct PDFKitView: NSViewRepresentable {
         return pdfView
     }
     
+    
     func updateNSView(_ nsView: PDFView, context: Context) {
         if let url = url {
             nsView.document = PDFDocument(url: url)
@@ -82,6 +83,8 @@ struct ContentView: View {
     @State private var isLoadingResponse: Bool = false
     @State private var openAIKey: String = KeychainHelper.retrieveKey() ?? ""
     @State private var isKeyFieldVisible: Bool = false
+    @State private var firstFewPages: String = ""
+    @State private var selectedText: String? = nil
     
     @StateObject private var chatService = ChatService()
 
@@ -135,7 +138,8 @@ struct ContentView: View {
                                 chatMessages: $chatMessages,
                                 newMessage: $newMessage,
                                 isLoading: $isLoadingResponse,
-                                sendMessage: sendMessage
+                                selectedContext: $selectedText,
+                                sendMessage: sendMessage,
                                )
                                     .frame(width: chatWidth)
                                     .transition(.move(edge: .trailing))
@@ -151,7 +155,6 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willBecomeActiveNotification)) { _ in
             addMenuShortcut()
         }
-        // Update page label when user changes page
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.PDFViewPageChanged, object: pdfView)) { _ in
             updatePageInfo()
         }
@@ -163,6 +166,9 @@ struct ContentView: View {
             } else {
                 openPDF()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.PDFViewSelectionChanged, object: pdfView)) { _ in
+            selectedText = pdfView?.currentSelection?.string?.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             guard let item = providers.first else { return false }
@@ -298,6 +304,7 @@ struct ContentView: View {
         // wait for PDFView to load the document before reading counts
         DispatchQueue.main.async {
             updatePageInfo()
+            extractFirstFewPagesText(from: url)
         }
     }
     
@@ -312,11 +319,33 @@ struct ContentView: View {
         let placeholderID = UUID()
         chatMessages.append(ChatMessage(id: placeholderID, text: "", isUser: false))
         
-        chatService.sendMessageStream(trimmed, apiKey: openAIKey) { chunk in
+        chatService.sendMessageStream(
+            trimmed,
+            apiKey: openAIKey,
+            firstFewPages: firstFewPages,
+            pageCount: pdfView?.document?.pageCount ?? 0,
+            selectedContext: selectedText) { chunk in
             if let index = chatMessages.firstIndex(where: { $0.id == placeholderID }) {
                 chatMessages[index].text += chunk
             }
         }
+    }
+    
+    private func extractFirstFewPagesText(from url: URL, maxPages: Int = 5) {
+        guard let pdf = PDFDocument(url: url) else {
+            return
+        }
+
+        let endPage = min(maxPages, pdf.pageCount)
+        var text = ""
+
+        for i in 0..<endPage {
+            if let pageText = pdf.page(at: i)?.string {
+                text += pageText + "\n\n"
+            }
+        }
+
+        firstFewPages = text
     }
 }
 

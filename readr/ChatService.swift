@@ -7,8 +7,6 @@
 
 import Foundation
 
-import Foundation
-
 class ChatService: NSObject, ObservableObject, URLSessionDataDelegate {
     @Published var streamedText = ""
     
@@ -16,11 +14,37 @@ class ChatService: NSObject, ObservableObject, URLSessionDataDelegate {
     private var buffer = Data()
     private var onReceiveChunk: ((String) -> Void)?
     
-    func sendMessageStream(_ message: String, apiKey: String, onChunk: @escaping (String) -> Void) {
+    func sendMessageStream(
+        _ message: String,
+        apiKey: String,
+        firstFewPages: String,
+        pageCount: Int,
+        selectedContext: String?,
+        onChunk: @escaping (String) -> Void) {
+        
         streamedText = ""
         self.onReceiveChunk = onChunk
         
         guard let url = URL(string: "https://api.openai.com/v1/chat/completions") else { return }
+        
+        let summaryKeywords = ["summary", "summarize", "overview"]
+        let messageLowercased = message.lowercased()
+
+        let shouldInjectContext = summaryKeywords.contains { messageLowercased.contains($0) }
+
+        var systemPrompt = "You are a helpful assistant."
+        if let context = selectedContext {
+            systemPrompt += " The user has selected the following context: \"\(context)\""
+        }
+        if shouldInjectContext {
+            systemPrompt += " Here is the content of the document: \(firstFewPages.prefix(3000))"
+        }
+
+        var messages: [[String: String]] = []
+        messages.append(["role": "system", "content": systemPrompt])
+        messages.append(["role": "user", "content": message])
+            
+        print("messages: \(messages)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -29,7 +53,7 @@ class ChatService: NSObject, ObservableObject, URLSessionDataDelegate {
         
         let payload: [String: Any] = [
             "model": "gpt-4",
-            "messages": [["role": "user", "content": message]],
+            "messages": messages,
             "stream": true
         ]
         
