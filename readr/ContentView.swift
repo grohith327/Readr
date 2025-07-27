@@ -207,7 +207,7 @@ struct ContentView: View {
                     Image(systemName: "key")
                         .imageScale(.large)
                         .foregroundColor(.accentColor)
-                        .padding(.horizontal)
+                        .padding(.trailing, 4)
                 }
                 .popover(isPresented: $isKeyFieldVisible) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -229,7 +229,6 @@ struct ContentView: View {
                     .frame(width: 320)
                 }
                 .buttonStyle(.plain)
-                .padding(.trailing, 4)
                 .onHover {
                     hovering in
                     if hovering {
@@ -248,7 +247,7 @@ struct ContentView: View {
                     Image(systemName: isChatVisible ? "sidebar.trailing" : "sidebar.leading")
                         .imageScale(.large)
                         .foregroundColor(.accentColor)
-                        .padding(.leading)
+                        .padding(.trailing, 4)
                 }
                 .buttonStyle(.plain)
                 .onHover {
