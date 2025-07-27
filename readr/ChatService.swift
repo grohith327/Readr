@@ -36,7 +36,8 @@ class ChatService: NSObject, ObservableObject, URLSessionDataDelegate {
         if let context = selectedContext {
             systemPrompt += " The user has selected the following context: \"\(context)\""
         }
-        if shouldInjectContext {
+        
+        if shouldInjectContext && (selectedContext == nil || selectedContext == "") {
             systemPrompt += " Here is the content of the document: \(firstFewPages.prefix(3000))"
         }
 

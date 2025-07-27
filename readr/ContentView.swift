@@ -139,6 +139,7 @@ struct ContentView: View {
                                 newMessage: $newMessage,
                                 isLoading: $isLoadingResponse,
                                 selectedContext: $selectedText,
+                                openAIKey: $openAIKey,
                                 sendMessage: sendMessage,
                                )
                                     .frame(width: chatWidth)
@@ -213,9 +214,7 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("OpenAI API Key")
                             .font(.headline)
-                        SecureField("sk-...", text: $openAIKey, onCommit: {
-                            KeychainHelper.saveKey(openAIKey)
-                        })
+                        SecureField("sk-...", text: $openAIKey)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .frame(width: 300)
 

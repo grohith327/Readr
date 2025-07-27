@@ -12,11 +12,27 @@ struct ChatPanel: View {
     @Binding var newMessage: String
     @Binding var isLoading: Bool
     @Binding var selectedContext: String?
+    @Binding var openAIKey: String
     var sendMessage: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if chatMessages.isEmpty {
+            if openAIKey.isEmpty {
+                Spacer()
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    Text("Please provide an API key to continue.")
+                        .foregroundColor(.red)
+                        .font(.title3.bold())
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(8)
+                .frame(maxWidth: .infinity)
+                Spacer()
+            } else if chatMessages.isEmpty {
                 Spacer()
                 Text("")
                     .foregroundColor(.secondary)
@@ -91,6 +107,7 @@ struct ChatPanel: View {
                     .foregroundColor(.secondary)
                 }
                 .padding(.horizontal)
+                .padding(.vertical, 6)
             }
             
             HStack(spacing: 10) {
@@ -106,6 +123,7 @@ struct ChatPanel: View {
                         .cornerRadius(8)
                         .font(.body)
                         .frame(height: 50)
+                        .disabled(openAIKey.isEmpty)
                     
                     if isLoading {
                         ProgressView()

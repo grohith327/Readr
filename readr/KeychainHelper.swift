@@ -29,6 +29,7 @@ struct KeychainHelper {
             kSecAttrService: service,
             kSecAttrAccount: account,
             kSecValueData: data,
+            kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock
         ] as CFDictionary
         SecItemAdd(attributes, nil)
     }
