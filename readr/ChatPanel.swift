@@ -25,38 +25,52 @@ struct ChatPanel: View {
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(chatMessages) { message in
-                            HStack {
-                                if message.isUser {
-                                    Spacer()
-                                    Text(message.text)
-                                        .padding(12)
-                                        .background(Color.accentColor.opacity(0.15))
-                                        .cornerRadius(16)
-                                        .frame(maxWidth: 300, alignment: .trailing)
-                                } else {
-                                    if let atrributed = try? AttributedString(markdown: message.text) {
-                                        Text(atrributed)
-                                            .padding(12)
-                                            .background(Color.gray.opacity(0.1))
-                                            .cornerRadius(16)
-                                            .frame(maxWidth: 300, alignment: .leading)
-                                    } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(chatMessages) { message in
+                                HStack {
+                                    if message.isUser {
+                                        Spacer()
                                         Text(message.text)
                                             .padding(12)
-                                            .background(Color.gray.opacity(0.1))
+                                            .background(Color.accentColor.opacity(0.15))
                                             .cornerRadius(16)
-                                            .frame(maxWidth: 300, alignment: .leading)
+                                            .frame(maxWidth: 300, alignment: .trailing)
+                                    } else {
+                                        if let atrributed = try? AttributedString(markdown: message.text) {
+                                            Text(atrributed)
+                                                .padding(12)
+                                                .background(Color.gray.opacity(0.1))
+                                                .cornerRadius(16)
+                                                .frame(maxWidth: 300, alignment: .leading)
+                                        } else {
+                                            Text(message.text)
+                                                .padding(12)
+                                                .background(Color.gray.opacity(0.1))
+                                                .cornerRadius(16)
+                                                .frame(maxWidth: 300, alignment: .leading)
+                                        }
+                                        Spacer()
                                     }
-                                    Spacer()
                                 }
+                                .padding(.horizontal)
+                                .id(message.id)
                             }
-                            .padding(.horizontal)
+                            
+                            Color.clear
+                                .frame(height: 1)
+                                .id("bottom")
+                        }
+                        .padding(.vertical)
+                    }
+                    .onChange(of: chatMessages.last?.text) {
+                        DispatchQueue.main.async {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo("bottom", anchor: .bottom)
+                            }
                         }
                     }
-                    .padding(.vertical)
                 }
             }
 
@@ -64,7 +78,7 @@ struct ChatPanel: View {
 
             if let context = selectedContext {
                 HStack {
-                    Text("📎 Context: \"\(context.prefix(100))…\"")
+                    Text("📎 Context: \"\(context.prefix(50))…\"")
                         .font(.footnote)
                         .padding(8)
                         .background(Color.gray.opacity(0.2))
