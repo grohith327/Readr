@@ -80,22 +80,24 @@ struct ChatPanel: View {
             }
             
             HStack(spacing: 10) {
-                TextField("Type your question…", text: $newMessage)
-                    .onSubmit {
-                        sendMessage()
+                ZStack(alignment: .trailing) {
+                    TextField("Type your question…", text: $newMessage)
+                        .onSubmit {
+                            sendMessage()
+                        }
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(8)
+                        .font(.body)
+                        .frame(height: 50)
+                    
+                    if isLoading {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                            .padding(.trailing, 16)
                     }
-                    .textFieldStyle(PlainTextFieldStyle())
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
-                    .font(.body)
-                    .frame(height: 50)
-                
-                if isLoading {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                        .padding(.trailing, 12)
                 }
             }
             .padding()

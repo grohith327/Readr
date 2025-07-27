@@ -318,15 +318,20 @@ struct ContentView: View {
         let placeholderID = UUID()
         chatMessages.append(ChatMessage(id: placeholderID, text: "", isUser: false))
         
+        isLoadingResponse = true
         chatService.sendMessageStream(
             trimmed,
             apiKey: openAIKey,
             firstFewPages: firstFewPages,
             pageCount: pdfView?.document?.pageCount ?? 0,
             selectedContext: selectedText) { chunk in
-            if let index = chatMessages.firstIndex(where: { $0.id == placeholderID }) {
-                chatMessages[index].text += chunk
-            }
+                if let index = chatMessages.firstIndex(where: { $0.id == placeholderID }) {
+                    chatMessages[index].text += chunk
+                }
+            
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isLoadingResponse = false
+                }
         }
     }
     
