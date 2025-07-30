@@ -83,7 +83,7 @@ struct ContentView: View {
     @State private var isLoadingResponse: Bool = false
     @State private var openAIKey: String = KeychainHelper.retrieveKey() ?? ""
     @State private var isKeyFieldVisible: Bool = false
-    @State private var firstFewPages: String = ""
+    @State private var surroundingPages: String = ""
     @State private var selectedText: String? = nil
     
     @StateObject private var chatService = ChatService()
@@ -158,6 +158,7 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.PDFViewPageChanged, object: pdfView)) { _ in
             updatePageInfo()
+            extractSurroundingPagesText()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ManualOpenPDF"))) { notification in
             if let url = notification.object as? URL {
@@ -302,7 +303,7 @@ struct ContentView: View {
         // wait for PDFView to load the document before reading counts
         DispatchQueue.main.async {
             updatePageInfo()
-            extractFirstFewPagesText(from: url)
+            extractSurroundingPagesText()
         }
     }
     
@@ -310,7 +311,8 @@ struct ContentView: View {
         let trimmed = newMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         
-        let userMessage = ChatMessage(text: trimmed, isUser: true)
+        let contextToUse = selectedText?.isEmpty == false ? selectedText : surroundingPages
+        let userMessage = ChatMessage(text: trimmed, isUser: true, context: contextToUse)
         chatMessages.append(userMessage)
         newMessage = ""
 
@@ -319,11 +321,8 @@ struct ContentView: View {
         
         isLoadingResponse = true
         chatService.sendMessageStream(
-            trimmed,
-            apiKey: openAIKey,
-            firstFewPages: firstFewPages,
-            pageCount: pdfView?.document?.pageCount ?? 0,
-            selectedContext: selectedText) { chunk in
+            messages: chatMessages.dropLast(),
+            apiKey: openAIKey) { chunk in
                 if let index = chatMessages.firstIndex(where: { $0.id == placeholderID }) {
                     chatMessages[index].text += chunk
                 }
@@ -334,21 +333,31 @@ struct ContentView: View {
         }
     }
     
-    private func extractFirstFewPagesText(from url: URL, maxPages: Int = 5) {
-        guard let pdf = PDFDocument(url: url) else {
+    private func extractSurroundingPagesText() {
+        guard let pdfView = pdfView, let document = pdfView.document else {
             return
         }
 
-        let endPage = min(maxPages, pdf.pageCount)
+        guard let current = pdfView.currentPage else { return }
+
+        let currentIndex = document.index(for: current)
+        let total = document.pageCount
+
+        let indicesToExtract = [
+            currentIndex - 1,
+            currentIndex,
+            currentIndex + 1
+        ].filter { $0 >= 0 && $0 < total }
+
         var text = ""
 
-        for i in 0..<endPage {
-            if let pageText = pdf.page(at: i)?.string {
-                text += pageText + "\n\n"
+        for i in indicesToExtract {
+            if let pageText = document.page(at: i)?.string {
+                text += "[Page \(i + 1)]\n" + pageText + "\n\n"
             }
         }
 
-        firstFewPages = text
+        surroundingPages = text
     }
 }
 
