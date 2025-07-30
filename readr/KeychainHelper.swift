@@ -9,7 +9,7 @@ import Foundation
 import Security
 
 struct KeychainHelper {
-    static let service = "com.rohith.readr"
+    static let service = "com.altic.readr"
     static let account = "OpenAIKey"
 
     static func saveKey(_ key: String) {
