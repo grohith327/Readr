@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.altic.readr</string>
+
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -10,7 +16,7 @@
 			<key>CFBundleTypeIconSystemGenerated</key>
 			<integer>0</integer>
 			<key>CFBundleTypeName</key>
-			<string>CFBundleTypeName</string>
+			<string>PDF Document</string>
 			<key>CFBundleTypeOSTypes</key>
 			<array>
 				<string></string>
@@ -18,8 +24,11 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
-			<string>Alternate</string>
+			<string>Owner</string>
 			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.adobe.pdf</string>
+			</array>
 			<array/>
 		</dict>
 	</array>
