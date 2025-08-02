@@ -4,6 +4,12 @@
 <dict>
 	<key>CFBundleIdentifier</key>
 	<string>com.altic.readr</string>
+	<key>CFBundleDisplayName</key>
+	<string>Readr</string>
+	<key>CFBundleName</key>
+	<string>Readr</string>
+	<key>CFBundleExecutable</key>
+	<string>readr</string>
 
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
