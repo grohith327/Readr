@@ -8,3 +8,4 @@ You can get the download file here: [Readr](https://rohith-gandhi.com/readr) or 
   <img src="assets/readr-image.png" width="100%" />
 </a>
 
+> Click to play video
