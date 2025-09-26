@@ -81,7 +81,15 @@ struct ContentView: View {
     @State private var totalPages: Int = 0
     @State private var isChatVisible: Bool = true
     @State private var isLoadingResponse: Bool = false
-    @State private var openAIKey: String = KeychainHelper.retrieveKey() ?? ""
+    @State private var openAIKey: String = KeychainHelper.retrieveKey(for: .OpenAI) ?? ""
+    @State private var anthropicKey: String = KeychainHelper.retrieveKey(for: .Anthropic) ?? ""
+    @State private var selectedProvider: AIProvider = {
+        if let savedProvider = UserDefaults.standard.string(forKey: "selectedAIProvider"),
+           let provider = AIProvider(rawValue: savedProvider) {
+            return provider
+        }
+        return .OpenAI
+    }()
     @State private var isKeyFieldVisible: Bool = false
     @State private var surroundingPages: String = ""
     @State private var selectedText: String? = nil
@@ -140,7 +148,9 @@ struct ContentView: View {
                                 isLoading: $isLoadingResponse,
                                 selectedContext: $selectedText,
                                 openAIKey: $openAIKey,
-                                sendMessage: sendMessage,
+                                anthropicKey: $anthropicKey,
+                                selectedProvider: $selectedProvider,
+                                sendMessage: sendMessage
                                )
                                     .frame(width: chatWidth)
                                     .transition(.move(edge: .trailing))
@@ -213,14 +223,39 @@ struct ContentView: View {
                 }
                 .popover(isPresented: $isKeyFieldVisible) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("OpenAI API Key")
+                        Text("AI Provider")
                             .font(.headline)
-                        SecureField("sk-...", text: $openAIKey)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(width: 300)
+                        Picker("Provider", selection: $selectedProvider) {
+                            ForEach(AIProvider.allCases, id: \.self) { provider in
+                                Text(provider.displayName).tag(provider)
+                            }
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+
+                        Divider()
+
+                        switch selectedProvider {
+                        case .OpenAI:
+                            Text("OpenAI API Key")
+                                .font(.headline)
+                            SecureField("sk-...", text: $openAIKey)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .frame(width: 300)
+                        case .Anthropic:
+                            Text("Anthropic API Key")
+                                .font(.headline)
+                            SecureField("sk-...", text: $anthropicKey)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .frame(width: 300)
+                        }
 
                         Button("Save") {
-                            KeychainHelper.saveKey(openAIKey)
+                            let keys = KeychainHelper.APIKeys(
+                                OpenAIKey: openAIKey.isEmpty ? nil : openAIKey,
+                                AnthropicKey: anthropicKey.isEmpty ? nil : anthropicKey
+                            )
+                            KeychainHelper.saveKeys(keys)
+                            UserDefaults.standard.set(selectedProvider.rawValue, forKey: "selectedAIProvider")
                             isKeyFieldVisible = false
                         }
                         .keyboardShortcut(.defaultAction)
@@ -319,14 +354,23 @@ struct ContentView: View {
         let placeholderID = UUID()
         chatMessages.append(ChatMessage(id: placeholderID, text: "", isUser: false))
         
+        let apiKey: String
+        switch selectedProvider {
+        case .OpenAI:
+            apiKey = openAIKey
+        case .Anthropic:
+            apiKey = anthropicKey
+        }
+
         isLoadingResponse = true
         chatService.sendMessageStream(
             messages: chatMessages.dropLast(),
-            apiKey: openAIKey) { chunk in
+            apiKey: apiKey,
+            provider: selectedProvider) { chunk in
                 if let index = chatMessages.firstIndex(where: { $0.id == placeholderID }) {
                     chatMessages[index].text += chunk
                 }
-            
+
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     isLoadingResponse = false
                 }

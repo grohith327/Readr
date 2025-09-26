@@ -7,22 +7,62 @@
 
 import SwiftUI
 
+struct MultilineText: View {
+    let text: String
+    let isMarkdown: Bool
+
+    init(_ text: String, isMarkdown: Bool = false) {
+        self.text = text
+        self.isMarkdown = isMarkdown
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(text.components(separatedBy: "\n"), id: \.self) { line in
+                if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                    Text(" ")
+                        .font(.body)
+                } else {
+                    if isMarkdown, let attributed = try? AttributedString(markdown: line) {
+                        Text(attributed)
+                            .font(.body)
+                    } else {
+                        Text(line)
+                            .font(.body)
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct ChatPanel: View {
     @Binding var chatMessages: [ChatMessage]
     @Binding var newMessage: String
     @Binding var isLoading: Bool
     @Binding var selectedContext: String?
     @Binding var openAIKey: String
+    @Binding var anthropicKey: String
+    @Binding var selectedProvider: AIProvider
     var sendMessage: () -> Void
     
+    private var currentKey: String {
+        switch selectedProvider {
+        case .OpenAI:
+            return openAIKey
+        case .Anthropic:
+            return anthropicKey
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if openAIKey.isEmpty {
+            if currentKey.isEmpty {
                 Spacer()
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.red)
-                    Text("Please provide an API key to continue.")
+                    Text("Please provide a \(selectedProvider.displayName) API key to continue.")
                         .foregroundColor(.red)
                         .font(.title3.bold())
                         .multilineTextAlignment(.center)
@@ -48,25 +88,17 @@ struct ChatPanel: View {
                                 HStack {
                                     if message.isUser {
                                         Spacer()
-                                        Text(message.text)
+                                        MultilineText(message.text)
                                             .padding(12)
                                             .background(Color.accentColor.opacity(0.15))
                                             .cornerRadius(16)
                                             .frame(maxWidth: 300, alignment: .trailing)
                                     } else {
-                                        if let atrributed = try? AttributedString(markdown: message.text) {
-                                            Text(atrributed)
-                                                .padding(12)
-                                                .background(Color.gray.opacity(0.1))
-                                                .cornerRadius(16)
-                                                .frame(maxWidth: 300, alignment: .leading)
-                                        } else {
-                                            Text(message.text)
-                                                .padding(12)
-                                                .background(Color.gray.opacity(0.1))
-                                                .cornerRadius(16)
-                                                .frame(maxWidth: 300, alignment: .leading)
-                                        }
+                                        MultilineText(message.text, isMarkdown: true)
+                                            .padding(12)
+                                            .background(Color.gray.opacity(0.1))
+                                            .cornerRadius(16)
+                                            .frame(maxWidth: 300, alignment: .leading)
                                         Spacer()
                                     }
                                 }
@@ -123,7 +155,7 @@ struct ChatPanel: View {
                         .cornerRadius(8)
                         .font(.body)
                         .frame(height: 50)
-                        .disabled(openAIKey.isEmpty)
+                        .disabled(currentKey.isEmpty)
                     
                     if isLoading {
                         ProgressView()

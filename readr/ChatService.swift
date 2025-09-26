@@ -47,43 +47,101 @@ class ChatService: NSObject, ObservableObject, URLSessionDataDelegate {
     func sendMessageStream(
         messages chatMessages: [ChatMessage],
         apiKey: String,
+        provider: AIProvider,
         onChunk: @escaping (String) -> Void) {
-        
+
         streamedText = ""
         self.onReceiveChunk = onChunk
         
-        guard let url = URL(string: "https://api.openai.com/v1/chat/completions") else { return }
-        
-        var messages: [[String: String]] = [
-            ["role": "system", "content": systemPrompt]
-        ]
+        let baseURL: String
+        let model: String
 
-        for msg in chatMessages {
-            var content: String = msg.text
-            if (msg.context?.isEmpty == false) {
-                content += "\n<context>\(msg.context ?? "")\n</context>"
-            }
-            messages.append([
-                "role": msg.isUser ? "user" : "assistant",
-                "content": content
-            ])
+        switch provider {
+        case .OpenAI:
+            baseURL = "https://api.openai.com/v1/chat/completions"
+            model = "gpt-4o"
+        case .Anthropic:
+            baseURL = "https://api.anthropic.com/v1/messages"
+            model = "claude-sonnet-4-20250514"
         }
-        
+
+        guard let url = URL(string: baseURL) else { return }
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let payload: [String: Any] = [
-            "model": "gpt-4",
-            "messages": messages,
-            "stream": true
-        ]
+
+        let payload: [String: Any]
+
+        switch provider {
+        case .OpenAI:
+            request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+
+            var messages: [[String: String]] = [
+                ["role": "system", "content": systemPrompt]
+            ]
+
+            for msg in chatMessages {
+                var content: String = msg.text
+                if (msg.context?.isEmpty == false) {
+                    content += "\n<context>\(msg.context ?? "")\n</context>"
+                }
+                messages.append([
+                    "role": msg.isUser ? "user" : "assistant",
+                    "content": content
+                ])
+            }
+
+            payload = [
+                "model": model,
+                "messages": messages,
+                "stream": true
+            ]
+
+        case .Anthropic:
+            request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
+            request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+
+            var messages: [[String: String]] = []
+
+            // Ensure messages start with user and alternate properly
+            var lastRole = ""
+            for msg in chatMessages {
+                let currentRole = msg.isUser ? "user" : "assistant"
+
+                // Skip consecutive messages from same role to maintain alternation
+                if currentRole == lastRole {
+                    continue
+                }
+
+                var content: String = msg.text
+                if (msg.context?.isEmpty == false) {
+                    content += "\n<context>\(msg.context ?? "")\n</context>"
+                }
+                messages.append([
+                    "role": currentRole,
+                    "content": content
+                ])
+                lastRole = currentRole
+            }
+
+            // Ensure we have at least one message and it starts with user
+            if messages.isEmpty || messages.first?["role"] != "user" {
+                messages.insert(["role": "user", "content": "Hello"], at: 0)
+            }
+
+            payload = [
+                "model": model,
+                "messages": messages,
+                "system": systemPrompt,
+                "max_tokens": 4096,
+                "stream": true
+            ]
+        }
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         } catch {
-            print("Failed to encode payload")
             return
         }
         
@@ -94,28 +152,40 @@ class ChatService: NSObject, ObservableObject, URLSessionDataDelegate {
     
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         guard let raw = String(data: data, encoding: .utf8) else { return }
-        
+
         let lines = raw.components(separatedBy: "\n")
         for line in lines {
             guard line.starts(with: "data: ") else { continue }
             let jsonLine = line.dropFirst(6)
             if jsonLine == "[DONE]" { return }
-            
+
             guard let jsonData = jsonLine.data(using: .utf8) else { continue }
             do {
-                if let dict = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                   let choices = dict["choices"] as? [[String: Any]],
-                   let delta = choices.first?["delta"] as? [String: Any],
-                   let content = delta["content"] as? String {
-                    
-                    DispatchQueue.main.async {
-                        self.streamedText += content
-                        self.onReceiveChunk?(content)
+                if let dict = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                    var content: String?
+
+                    // Handle OpenAI format
+                    if let choices = dict["choices"] as? [[String: Any]],
+                       let delta = choices.first?["delta"] as? [String: Any] {
+                        content = delta["content"] as? String
+                    }
+                    // Handle Anthropic format
+                    else if dict["type"] as? String == "content_block_delta",
+                            let deltaDict = dict["delta"] as? [String: Any] {
+                        content = deltaDict["text"] as? String
+                    }
+
+                    if let content = content {
+                        DispatchQueue.main.async {
+                            self.streamedText += content
+                            self.onReceiveChunk?(content)
+                        }
                     }
                 }
             } catch {
-                print("JSON decode error: \(error)")
+                continue
             }
         }
     }
+
 }
